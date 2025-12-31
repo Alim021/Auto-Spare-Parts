@@ -1,0 +1,328 @@
+   frontend
+npm install recharts
+
+npm install axios recharts @mui/material @emotion/react @emotion/styled @mui/icons-material
+
+   npm install next react react-dom axios
+npm install react-csv
+
+
+
+backend
+
+npm install multer
+
+npm install bcrypt@5.1.0
+
+
+
+
+
+
+
+
+ yha kuch aisa krna hai jb user register krke login krta hai to use home page dikhna chahiye aur uske baad login ya register page user ko nhi dikhna chhaiye navbar me navbar me sirf home page my account me user ki profile dikhni chhiye jo usne rgister krte smy banayi hai us profile edit ka option bhi hona chahiye aur ek button hona chhaiye navbar me My items bolkr jisme user ne ab tk jitne item add kiye hai utne hi serperate hokar wha dikhne chahiye aur home page pr sb kuch dikhan chahiye sb usr ka ek sath
+
+
+
+
+
+ ✅ Admin can delete user
+
+✅ Admin can view user profile and their items
+
+✅ Search bar to search users
+
+✅ Admin can update items too
+
+
+
+// Add to routes/item.js
+router.get('/all', (req, res) => {
+  const query = 'SELECT * FROM items';
+  db.query(query, (err, results) => {
+    if (err) return res.status(500).json({ message: 'DB error' });
+    return res.status(200).json(results);
+  });
+});
+
+
+
+Here is the complete updated admin.js file with all the requested features:
+
+✅ Admin login
+✅ View all users
+✅ View all spare parts
+✅ Delete user and their parts
+✅ Delete a specific part
+✅ Get user profile + their items
+✅ Update spare part
+✅ Search users by name or email
+
+
+
+
+Here's your updated routes/admin.js file with all routes fully set up:
+
+Admin Login (POST /admin/login)
+
+Get All Users (GET /admin/users)
+
+Get All Parts (GET /admin/parts)
+
+Delete User + Parts (DELETE /admin/delete-user/:email)
+
+Delete Part (DELETE /admin/delete-part/:id)
+
+Get User + Their Items (GET /admin/user-details/:email)
+
+Update Part (PUT /admin/update-part/:id)
+
+Search Users (GET /admin/search-users)
+
+
+
+
+
+{isAdmin && (
+            <>
+              <li>
+                <Link
+                  href="/admin-dashboard"
+                  className={isActive("/admin-dashboard") ? "active" : ""}
+                  onClick={handleLinkClick}
+                >
+                  All Users
+                </Link>
+              </li>
+              <li>
+                <button onClick={handleLogout} className="logout-btn">
+                  🔓 Logout
+                </button>
+              </li>
+            </>
+          )}
+
+
+
+
+
+
+
+
+"use client";
+
+import { useState } from 'react';
+import { useRouter } from 'next/router';
+import '../styles/addpart.css';
+
+export default function AddPart() {
+  const [parts, setParts] = useState([
+    {
+      name: '',
+      description: '',
+      price: '',
+      originalPrice: '', // ✅ Added field
+      image: '',
+      shopName: '',
+      shopLocation: '',
+      file: null
+    }
+  ]);
+
+  const router = useRouter();
+
+  const handleChange = (index, e) => {
+    const updatedParts = [...parts];
+    updatedParts[index][e.target.name] = e.target.value;
+    setParts(updatedParts);
+  };
+
+  const handleImageChange = (index, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const updatedParts = [...parts];
+    updatedParts[index].image = URL.createObjectURL(file); // preview image
+    updatedParts[index].file = file;
+    setParts(updatedParts);
+  };
+
+  const handleAddMore = () => {
+    setParts([
+      ...parts,
+      {
+        name: '',
+        description: '',
+        price: '',
+        originalPrice: '', // ✅ Add this in new part object too
+        image: '',
+        shopName: '',
+        shopLocation: '',
+        file: null
+      }
+    ]);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const email = localStorage.getItem('email');
+
+    if (!email) {
+      alert("Please login first.");
+      router.push('/login');
+      return;
+    }
+
+    try {
+      for (const part of parts) {
+        const formData = new FormData();
+        formData.append('name', part.name);
+        formData.append('description', part.description);
+        formData.append('price', part.price);
+        formData.append('originalPrice', part.originalPrice); // ✅ include this
+        formData.append('shopName', part.shopName);
+        formData.append('shopLocation', part.shopLocation);
+        formData.append('email', email);
+        formData.append('image', part.file);
+
+        const res = await fetch("http://localhost:5000/api/add-part", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || "Failed to add part");
+        }
+      }
+
+      alert(`${parts.length} part(s) added successfully!`);
+      setParts([
+        {
+          name: '',
+          description: '',
+          price: '',
+          originalPrice: '',
+          image: '',
+          shopName: '',
+          shopLocation: '',
+          file: null
+        }
+      ]);
+      router.push('/add-part');
+    } catch (err) {
+      console.error("Upload Error:", err);
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleShowItems = () => {
+    const email = localStorage.getItem('email');
+    if (!email) {
+      alert('Please login first!');
+      router.push('/login');
+      return;
+    }
+    router.push('/my-items');
+  };
+
+  return (
+    <div className="addpart-container">
+      <form className="addpart-form" onSubmit={handleSubmit}>
+        <h2>Add Spare Parts</h2>
+
+        {parts.map((part, index) => (
+          <div key={index} className="part-section">
+            <h3>Part {index + 1}</h3>
+
+            <input
+              type="text"
+              name="name"
+              placeholder="Part Name"
+              value={part.name}
+              onChange={(e) => handleChange(index, e)}
+              required
+            />
+
+            <textarea
+              name="description"
+              placeholder="Description"
+              value={part.description}
+              onChange={(e) => handleChange(index, e)}
+              required
+            />
+
+            <input
+              type="number"
+              name="price"
+              placeholder="Selling Price (INR)"
+              value={part.price}
+              onChange={(e) => handleChange(index, e)}
+              required
+            />
+
+            <input
+              type="number"
+              name="originalPrice"
+              placeholder="Original Price (INR)"
+              value={part.originalPrice}
+              onChange={(e) => handleChange(index, e)}
+              required
+            />
+
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => handleImageChange(index, e)}
+              required
+            />
+            {part.image && (
+              <img
+                src={part.image}
+                alt="preview"
+                className="preview-img"
+              />
+            )}
+
+            <input
+              type="text"
+              name="shopName"
+              placeholder="Shop Name"
+              value={part.shopName}
+              onChange={(e) => handleChange(index, e)}
+              required
+            />
+
+            <input
+              type="url"
+              name="shopLocation"
+              placeholder="Google Maps Link"
+              value={part.shopLocation}
+              onChange={(e) => handleChange(index, e)}
+              required
+            />
+
+            <hr />
+          </div>
+        ))}
+
+        <button type="button" onClick={handleAddMore} className="add-more-btn">
+          ➕ ADD More Item
+        </button>
+
+        <button type="submit" className="submit-btn">
+          ADD All Parts
+        </button>
+{/* 
+        <button
+          type="button"
+          className="show-items-btn"
+          onClick={handleShowItems}
+        >
+          📦 Show My All Items
+        </button> */}
+      </form>
+    </div>
+  );
+}

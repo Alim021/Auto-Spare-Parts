@@ -1,0 +1,104 @@
+/* Navbar Styles */
+.navbar {
+  /* background: linear-gradient(90deg, #0d3c33 0%, #000000 100%); */
+  background-color: lightseagreen;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 2px solid #fff;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Brand styling */
+.navbar-brand1 {
+  color: white !important;
+  font-size: clamp(1.5rem, 6vw, 2rem);
+  font-weight: bold;
+  font-family: "Dancing Script", cursive;
+  z-index: 1001;
+}
+
+/* Hamburger icon */
+.menu-toggle {
+  display: none;
+  font-size: 2rem;
+  color: white;
+  cursor: pointer;
+  z-index: 1100;
+}
+
+/* Menu styles */
+.navbar-menu {
+  list-style: none;
+  display: flex;
+  gap: 1.8rem;
+  margin: 0;
+  padding: 0;
+}
+
+/* ✨ Unified styling for both <a> and <button> */
+.navbar-menu li a,
+.navbar-menu li button.logout-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-decoration: none;
+  color: white;
+  font-weight: 600;
+  font-size: 2rem;
+  cursor: pointer;
+  font: inherit;
+  transition: all 0.3s ease;
+}
+
+/* Hover and active states */
+.navbar-menu li a:hover,
+.navbar-menu li a.active,
+.navbar-menu li button.logout-btn:hover {
+  color: orange;
+  transform: scale(1.05);
+}
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+  .menu-toggle {
+    display: block;
+  }
+
+  .navbar-menu {
+    display: none;
+    flex-direction: column;
+    background-color: lightseagreen;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    padding: 1rem 0;
+    border-top: 1px solid #fff;
+  }
+
+  .navbar-menu.open {
+    display: flex;
+  }
+
+  .navbar-menu li {
+    margin: 0.4rem 0;
+    
+  }
+
+  .navbar-menu li a,
+  .navbar-menu li button.logout-btn {
+    font-size: 2rem;
+    padding: 0.5rem 1rem;
+  }
+}

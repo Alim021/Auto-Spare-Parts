@@ -1,0 +1,17 @@
+.part-card {
+  border: 1px solid #e5e7eb;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: 0.3s ease;
+}
+
+.part-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+.part-price {
+  color: #16a34a;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
