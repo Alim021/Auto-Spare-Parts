@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import "../../styles/home.css";
 import "../../styles/myitems.css";
 
-export default function MyPartsContent() {
+// Inner component jo Suspense ke andar hai
+function MyPartsContent() {
   const [parts, setParts] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
   const [loggedInEmail, setLoggedInEmail] = useState(null);
   const [loading, setLoading] = useState(true);
-
   const [searchTerm, setSearchTerm] = useState("");
   const [editingPart, setEditingPart] = useState(null);
   const [updateForm, setUpdateForm] = useState({
@@ -29,10 +29,12 @@ export default function MyPartsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Set API base URL for both development and production
-  const API_BASE_URL = process.env.NODE_ENV === 'production' 
-    ? 'https://auto-spare-parts.onrender.com'
-    : 'http://localhost:5000';
+  // API URL setup
+  const API_BASE_URL = typeof window !== 'undefined' 
+    ? (window.location.hostname === 'localhost' 
+      ? 'http://localhost:5000' 
+      : 'https://auto-spare-parts.onrender.com')
+    : 'https://auto-spare-parts.onrender.com';
 
   useEffect(() => {
     const emailFromParams = searchParams.get("email");
@@ -509,5 +511,21 @@ export default function MyPartsContent() {
         </div>
       )}
     </div>
+  );
+}
+
+// Main component jo Suspense use karta hai
+export default function MyPartsPage() {
+  return (
+    <Suspense fallback={
+      <div className="home-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading page...</p>
+        </div>
+      </div>
+    }>
+      <MyPartsContent />
+    </Suspense>
   );
 }
