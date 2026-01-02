@@ -7,7 +7,9 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // YEH IMPORTANT HAI - Static Export disable karo
   output: 'standalone',
+  // Force dynamic rendering
   experimental: {
     missingSuspenseWithCSRBailout: false,
   },

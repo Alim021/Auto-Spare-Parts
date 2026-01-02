@@ -13,33 +13,41 @@ export default function MyPartsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingPart, setEditingPart] = useState(null);
   const [updateForm, setUpdateForm] = useState({
-    part_number: "",
-    name: "",
-    description: "",
-    price: "",
-    originalPrice: "",
-    quantity_owned: "",
-    shopName: "",
-    shopLocation: "",
-    image: null,
-    imagePreview: "",
+    part_number: "", name: "", description: "", price: "", 
+    originalPrice: "", quantity_owned: "", shopName: "", 
+    shopLocation: "", image: null, imagePreview: "",
   });
 
   const router = useRouter();
-
-  // API URL
+  
+  // DIRECT PRODUCTION URL - No conditional logic
   const API_BASE_URL = "https://auto-spare-parts.onrender.com";
 
   useEffect(() => {
-    // Email get karein without useSearchParams
-    const urlParams = new URLSearchParams(window.location.search);
-    const emailFromParams = urlParams.get("email");
-    const emailFromStorage = localStorage.getItem("email");
+    // Email get karein WITHOUT useSearchParams
+    const getEmail = () => {
+      // Check URL parameters
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const emailFromParams = urlParams.get("email");
+        
+        if (emailFromParams) {
+          return emailFromParams;
+        }
+        
+        // Check localStorage
+        const emailFromStorage = localStorage.getItem("email");
+        if (emailFromStorage) {
+          return emailFromStorage;
+        }
+      }
+      return null;
+    };
 
-    if (emailFromParams) {
-      setLoggedInEmail(emailFromParams);
-    } else if (emailFromStorage) {
-      setLoggedInEmail(emailFromStorage);
+    const email = getEmail();
+    
+    if (email) {
+      setLoggedInEmail(email);
     } else {
       alert("Please login first!");
       router.push("/login");
@@ -66,12 +74,16 @@ export default function MyPartsPage() {
       ),
     ])
       .then(([userData, partsData]) => {
-        setUserProfile(userData[0]);
-        setParts(partsData);
+        if (userData && userData.length > 0) {
+          setUserProfile(userData[0]);
+        }
+        if (partsData) {
+          setParts(partsData);
+        }
       })
       .catch((err) => {
-        console.error(err);
-        alert(err.message);
+        console.error("Fetch error:", err);
+        alert("Failed to load data. Please refresh the page.");
       })
       .finally(() => {
         setLoading(false);
@@ -90,8 +102,6 @@ export default function MyPartsPage() {
         },
       });
 
-      const data = await res.json();
-
       if (res.ok) {
         alert("Item deleted successfully!");
         setParts(parts.filter((p) => p.id !== id));
@@ -99,6 +109,7 @@ export default function MyPartsPage() {
           setEditingPart(null);
         }
       } else {
+        const data = await res.json();
         alert(data.message || "Failed to delete");
       }
     } catch (err) {
@@ -167,8 +178,6 @@ export default function MyPartsPage() {
         }
       );
 
-      const data = await res.json();
-
       if (res.ok) {
         alert("Part updated successfully!");
 
@@ -176,7 +185,7 @@ export default function MyPartsPage() {
           ...editingPart,
           ...updateForm,
           price: Number(updateForm.price),
-          originalPrice: Number(updateForm.originalPrice),
+          originalPrice: updateForm.originalPrice ? Number(updateForm.originalPrice) : null,
           quantity_owned: Number(updateForm.quantity_owned),
           image: updateForm.imagePreview || editingPart.image,
         };
@@ -184,6 +193,7 @@ export default function MyPartsPage() {
         setParts(parts.map((p) => (p.id === editingPart.id ? updatedPart : p)));
         setEditingPart(null);
       } else {
+        const data = await res.json();
         alert(data.message || "Failed to update");
       }
     } catch (err) {
@@ -206,7 +216,7 @@ export default function MyPartsPage() {
       (part.part_number?.toLowerCase().includes(search)) ||
       (part.name?.toLowerCase().includes(search)) ||
       (part.description?.toLowerCase().includes(search)) ||
-      (part.shopName?.toLowerCase().includes(search) || part.shop_name?.toLowerCase().includes(search)) ||
+      (part.shopName?.toLowerCase().includes(search) || (part.shop_name && part.shop_name.toLowerCase().includes(search))) ||
       (part.price?.toString().includes(search)) ||
       availability.includes(search)
     );
@@ -232,16 +242,7 @@ export default function MyPartsPage() {
       </button>
 
       {userProfile && (
-        <div
-          style={{
-            marginBottom: "20px",
-            padding: "10px",
-            border: "1px solid #ccc",
-            backgroundColor: "lightseagreen",
-            color: "white",
-            borderRadius: "8px",
-          }}
-        >
+        <div className="profile-info">
           <p><strong>Name:</strong> {userProfile.name}</p>
           <p><strong>Shop Name:</strong> {userProfile.shop_name}</p>
           <p><strong>Email:</strong> {userProfile.email}</p>
@@ -276,22 +277,22 @@ export default function MyPartsPage() {
           <table className="parts-table">
             <thead>
               <tr>
-                <th style={{ width: '10px' }}>#</th>
-                <th style={{ width: '100px' }}>Image</th>
-                <th style={{ width: '120px' }}>Part Number</th>
-                <th style={{ width: '150px' }}>Name</th>
-                <th style={{ width: '250px' }}>Description</th>
-                <th style={{ width: '110px' }}>Price</th>
-                <th style={{ width: '50px' }}>Qty</th>
-                <th style={{ width: '150px' }}>Shop</th>
-                <th style={{ width: '130px' }}>Availability</th>
-                <th style={{ width: '100px' }}>Action</th>
+                <th>#</th>
+                <th>Image</th>
+                <th>Part Number</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Price</th>
+                <th>Qty</th>
+                <th>Shop</th>
+                <th>Availability</th>
+                <th>Action</th>
               </tr>
             </thead>
 
             <tbody>
               {filteredParts.map((part, index) => (
-                <tr key={part.id}>
+                <tr key={part.id || index}>
                   <td>{index + 1}</td>
                   <td>
                     <img
@@ -308,48 +309,35 @@ export default function MyPartsPage() {
                   <td>{part.name}</td>
                   <td className="description-cell">{part.description}</td>
                   <td>
-                    ₹{part.price}{' '}
+                    ₹{part.price}
                     {part.originalPrice && part.originalPrice > part.price && (
-                      <span className="strike-price">₹{part.originalPrice}</span>
+                      <span className="strike-price"> (₹{part.originalPrice})</span>
                     )}
                   </td>
                   <td>{part.quantity_owned}</td>
                   <td>{part.shopName || part.shop_name || '-'}</td>
                   <td>
                     {part.quantity_owned === 0 ? (
-                      <span style={{ color: 'red', fontWeight: 'bold' }}>
-                        ❌ Out of Stock
-                      </span>
+                      <span className="out-of-stock">❌ Out of Stock</span>
                     ) : part.quantity_owned > 0 && part.quantity_owned <= 5 ? (
-                      <span style={{ color: 'orange', fontWeight: 'bold' }}>
-                        🟠 Limited Stock
-                      </span>
+                      <span className="limited-stock">🟠 Limited Stock</span>
+                    ) : part.shopLocation ? (
+                      <a
+                        href={part.shopLocation}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="available-link"
+                      >
+                        🛒 Available
+                      </a>
                     ) : (
-                      part.shopLocation ? (
-                        <a
-                          href={part.shopLocation}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            color: 'green',
-                            fontWeight: 'bold',
-                            textDecoration: 'none',
-                          }}
-                        >
-                          🛒 Available
-                        </a>
-                      ) : (
-                        <span style={{ color: 'green', fontWeight: 'bold' }}>
-                          ✅ Available
-                        </span>
-                      )
+                      <span className="available">✅ Available</span>
                     )}
                   </td>
                   <td>
                     <button
                       className="update-btn"
                       onClick={() => openUpdateForm(part)}
-                      style={{ marginRight: '8px' }}
                     >
                       ✏️ Update
                     </button>
