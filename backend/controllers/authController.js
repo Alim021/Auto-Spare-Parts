@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const ShopOwner = require('../models/ShopOwner');
 
 exports.register = async (req, res) => {

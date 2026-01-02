@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 // CHANGE: MySQL se mongoose aur models import
 const mongoose = require('mongoose');
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const ShopOwner = require('../models/ShopOwner');
 const Part = require('../models/Part');
 const Admin = require('../models/Admin');

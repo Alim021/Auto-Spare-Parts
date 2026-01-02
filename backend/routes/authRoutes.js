@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const ShopOwner = require('../models/ShopOwner');
 
 function validateGSTNumber(gstNumber) {
