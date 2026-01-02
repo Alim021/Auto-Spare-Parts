@@ -1,5 +1,9 @@
 "use client";
 
+// THESE TWO LINES ARE CRITICAL - MUST BE AT THE TOP
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import "../../styles/home.css";
@@ -8,7 +12,7 @@ import "../../styles/myitems.css";
 export default function MyPartsPage() {
   const [parts, setParts] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
-  const [loggedInEmail, setLoggedInEmail] = useState(null);
+  const [loggedInEmail, setLoggedInEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [editingPart, setEditingPart] = useState(null);
@@ -20,104 +24,105 @@ export default function MyPartsPage() {
 
   const router = useRouter();
   
-  // DIRECT PRODUCTION URL - No conditional logic
+  // DIRECT URL - No conditions
   const API_BASE_URL = "https://auto-spare-parts.onrender.com";
 
+  // Get email without useSearchParams - SAFE METHOD
   useEffect(() => {
-    // Email get karein WITHOUT useSearchParams
-    const getEmail = () => {
-      // Check URL parameters
-      if (typeof window !== 'undefined') {
-        const urlParams = new URLSearchParams(window.location.search);
-        const emailFromParams = urlParams.get("email");
-        
-        if (emailFromParams) {
-          return emailFromParams;
-        }
-        
-        // Check localStorage
-        const emailFromStorage = localStorage.getItem("email");
-        if (emailFromStorage) {
-          return emailFromStorage;
-        }
-      }
-      return null;
-    };
-
-    const email = getEmail();
+    // Only run on client side
+    if (typeof window === 'undefined') return;
     
+    const getEmail = () => {
+      try {
+        // Method 1: URL parameters
+        const urlSearchParams = new URLSearchParams(window.location.search);
+        const emailFromUrl = urlSearchParams.get('email');
+        if (emailFromUrl) return emailFromUrl;
+        
+        // Method 2: localStorage
+        const emailFromStorage = localStorage.getItem('email');
+        if (emailFromStorage) return emailFromStorage;
+        
+        return null;
+      } catch (error) {
+        console.error("Error getting email:", error);
+        return null;
+      }
+    };
+    
+    const email = getEmail();
     if (email) {
       setLoggedInEmail(email);
     } else {
       alert("Please login first!");
       router.push("/login");
+      return;
     }
   }, [router]);
 
+  // Fetch data
   useEffect(() => {
     if (!loggedInEmail) return;
-
-    setLoading(true);
-
-    Promise.all([
-      fetch(`${API_BASE_URL}/api/shop_owners?email=${loggedInEmail}`).then(
-        (res) => {
-          if (!res.ok) throw new Error("Failed to fetch user profile");
-          return res.json();
+    
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        const [userResponse, partsResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/shop_owners?email=${loggedInEmail}`),
+          fetch(`${API_BASE_URL}/api/spare_parts?email=${loggedInEmail}`)
+        ]);
+        
+        if (!userResponse.ok || !partsResponse.ok) {
+          throw new Error("Network response was not ok");
         }
-      ),
-      fetch(`${API_BASE_URL}/api/spare_parts?email=${loggedInEmail}`).then(
-        (res) => {
-          if (!res.ok) throw new Error("Failed to fetch spare parts");
-          return res.json();
-        }
-      ),
-    ])
-      .then(([userData, partsData]) => {
-        if (userData && userData.length > 0) {
-          setUserProfile(userData[0]);
-        }
-        if (partsData) {
-          setParts(partsData);
-        }
-      })
-      .catch((err) => {
-        console.error("Fetch error:", err);
-        alert("Failed to load data. Please refresh the page.");
-      })
-      .finally(() => {
+        
+        const userData = await userResponse.json();
+        const partsData = await partsResponse.json();
+        
+        setUserProfile(userData[0] || null);
+        setParts(Array.isArray(partsData) ? partsData : []);
+        
+      } catch (error) {
+        console.error("Fetch error:", error);
+        alert("Failed to load data. Please try again.");
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    
+    fetchData();
   }, [loggedInEmail]);
 
+  // Delete handler
   const handleDelete = async (id) => {
-    const confirmDelete = confirm("Are you sure you want to delete this item?");
-    if (!confirmDelete) return;
-
+    if (!confirm("Are you sure you want to delete this item?")) return;
+    
     try {
-      const res = await fetch(`${API_BASE_URL}/api/spare_parts/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/spare_parts/${id}`, {
         method: "DELETE",
         headers: {
           "x-user-email": loggedInEmail,
         },
       });
-
-      if (res.ok) {
+      
+      if (response.ok) {
         alert("Item deleted successfully!");
-        setParts(parts.filter((p) => p.id !== id));
+        setParts(prevParts => prevParts.filter(part => part.id !== id));
         if (editingPart && editingPart.id === id) {
           setEditingPart(null);
         }
       } else {
-        const data = await res.json();
-        alert(data.message || "Failed to delete");
+        const errorData = await response.json();
+        alert(errorData.message || "Failed to delete item");
       }
-    } catch (err) {
-      console.error(err);
-      alert("Something went wrong");
+    } catch (error) {
+      console.error("Delete error:", error);
+      alert("Something went wrong. Please try again.");
     }
   };
 
+  // Open update form
   const openUpdateForm = (part) => {
     setEditingPart(part);
     setUpdateForm({
@@ -134,40 +139,44 @@ export default function MyPartsPage() {
     });
   };
 
+  // Handle form changes
   const handleUpdateChange = (e) => {
     const { name, value } = e.target;
-    setUpdateForm((prev) => ({ ...prev, [name]: value }));
+    setUpdateForm(prev => ({ ...prev, [name]: value }));
   };
 
+  // Handle image change
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setUpdateForm((prev) => ({
+    setUpdateForm(prev => ({
       ...prev,
       image: file,
       imagePreview: URL.createObjectURL(file),
     }));
   };
 
+  // Handle form submission
   const handleUpdateSubmit = async (e) => {
     e.preventDefault();
     if (!editingPart) return;
-
-    const formData = new FormData();
-    formData.append("part_number", updateForm.part_number);
-    formData.append("name", updateForm.name);
-    formData.append("description", updateForm.description);
-    formData.append("price", updateForm.price);
-    formData.append("originalPrice", updateForm.originalPrice);
-    formData.append("quantity_owned", updateForm.quantity_owned);
-    formData.append("shopName", updateForm.shopName);
-    formData.append("shopLocation", updateForm.shopLocation);
-    if (updateForm.image) {
-      formData.append("image", updateForm.image);
-    }
-
+    
     try {
-      const res = await fetch(
+      const formData = new FormData();
+      formData.append("part_number", updateForm.part_number);
+      formData.append("name", updateForm.name);
+      formData.append("description", updateForm.description);
+      formData.append("price", updateForm.price);
+      formData.append("originalPrice", updateForm.originalPrice || "");
+      formData.append("quantity_owned", updateForm.quantity_owned);
+      formData.append("shopName", updateForm.shopName);
+      formData.append("shopLocation", updateForm.shopLocation || "");
+      
+      if (updateForm.image) {
+        formData.append("image", updateForm.image);
+      }
+      
+      const response = await fetch(
         `${API_BASE_URL}/api/update-part/${editingPart.id}`,
         {
           method: "PUT",
@@ -177,10 +186,10 @@ export default function MyPartsPage() {
           body: formData,
         }
       );
-
-      if (res.ok) {
+      
+      if (response.ok) {
         alert("Part updated successfully!");
-
+        
         const updatedPart = {
           ...editingPart,
           ...updateForm,
@@ -189,39 +198,43 @@ export default function MyPartsPage() {
           quantity_owned: Number(updateForm.quantity_owned),
           image: updateForm.imagePreview || editingPart.image,
         };
-
-        setParts(parts.map((p) => (p.id === editingPart.id ? updatedPart : p)));
+        
+        setParts(prevParts => 
+          prevParts.map(part => 
+            part.id === editingPart.id ? updatedPart : part
+          )
+        );
         setEditingPart(null);
       } else {
-        const data = await res.json();
-        alert(data.message || "Failed to update");
+        const errorData = await response.json();
+        alert(errorData.message || "Failed to update part");
       }
-    } catch (err) {
-      console.error(err);
-      alert("Something went wrong");
+    } catch (error) {
+      console.error("Update error:", error);
+      alert("Something went wrong. Please try again.");
     }
   };
 
-  const filteredParts = parts.filter((part) => {
+  // Filter parts based on search term
+  const filteredParts = parts.filter(part => {
+    if (!searchTerm.trim()) return true;
+    
     const search = searchTerm.toLowerCase();
-
-    const availability =
-      part.quantity_owned === 0
-        ? "out of stock"
-        : part.quantity_owned <= 5
-        ? "limited stock"
-        : "available";
-
+    const availability = part.quantity_owned === 0 ? "out of stock" :
+                        part.quantity_owned <= 5 ? "limited stock" : "available";
+    
     return (
-      (part.part_number?.toLowerCase().includes(search)) ||
-      (part.name?.toLowerCase().includes(search)) ||
-      (part.description?.toLowerCase().includes(search)) ||
-      (part.shopName?.toLowerCase().includes(search) || (part.shop_name && part.shop_name.toLowerCase().includes(search))) ||
-      (part.price?.toString().includes(search)) ||
+      (part.part_number && part.part_number.toLowerCase().includes(search)) ||
+      (part.name && part.name.toLowerCase().includes(search)) ||
+      (part.description && part.description.toLowerCase().includes(search)) ||
+      (part.shopName && part.shopName.toLowerCase().includes(search)) ||
+      (part.shop_name && part.shop_name.toLowerCase().includes(search)) ||
+      (part.price && part.price.toString().includes(search)) ||
       availability.includes(search)
     );
   });
 
+  // Loading state
   if (loading) {
     return (
       <div className="home-container">
@@ -233,6 +246,7 @@ export default function MyPartsPage() {
     );
   }
 
+  // Main render
   return (
     <div className="home-container">
       <h1>📦 {userProfile ? `${userProfile.shop_name} Shopkeeper` : "Auto Spare Parts"}</h1>
@@ -250,7 +264,7 @@ export default function MyPartsPage() {
         </div>
       )}
 
-      <h1>📦 My Spare Parts</h1>
+      <h1>📦 My Spare Parts ({parts.length})</h1>
 
       <div className="search-section">
         <input
@@ -264,13 +278,17 @@ export default function MyPartsPage() {
 
       {filteredParts.length === 0 ? (
         <div className="empty-state">
-          <p className="no-result">No items found. Try a different search!</p>
-          <button 
-            className="clear-filters-btn"
-            onClick={() => setSearchTerm("")}
-          >
-            Clear Search
-          </button>
+          <p className="no-result">
+            {searchTerm ? "No items found for your search." : "No parts available."}
+          </p>
+          {searchTerm && (
+            <button 
+              className="clear-filters-btn"
+              onClick={() => setSearchTerm("")}
+            >
+              Clear Search
+            </button>
+          )}
         </div>
       ) : (
         <div className="table-container">
@@ -307,7 +325,9 @@ export default function MyPartsPage() {
                   </td>
                   <td>{part.part_number || '-'}</td>
                   <td>{part.name}</td>
-                  <td className="description-cell">{part.description}</td>
+                  <td className="description-cell">
+                    {part.description || "No description"}
+                  </td>
                   <td>
                     ₹{part.price}
                     {part.originalPrice && part.originalPrice > part.price && (
@@ -338,6 +358,7 @@ export default function MyPartsPage() {
                     <button
                       className="update-btn"
                       onClick={() => openUpdateForm(part)}
+                      style={{ marginRight: '8px' }}
                     >
                       ✏️ Update
                     </button>
@@ -368,7 +389,6 @@ export default function MyPartsPage() {
                     name="part_number"
                     value={updateForm.part_number}
                     onChange={handleUpdateChange}
-                    required
                     placeholder="Part Number"
                   />
                 </div>
@@ -403,8 +423,8 @@ export default function MyPartsPage() {
                     name="price"
                     value={updateForm.price}
                     onChange={handleUpdateChange}
-                    placeholder="Price"
                     required
+                    placeholder="Price"
                     min="0"
                     step="0.01"
                   />
@@ -430,8 +450,8 @@ export default function MyPartsPage() {
                     name="quantity_owned"
                     value={updateForm.quantity_owned}
                     onChange={handleUpdateChange}
-                    placeholder="Quantity Owned"
                     required
+                    placeholder="Quantity Owned"
                     min="0"
                   />
                 </div>

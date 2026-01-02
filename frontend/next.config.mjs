@@ -7,11 +7,27 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // YEH IMPORTANT HAI - Static Export disable karo
+  // IMPORTANT: Static generation disable
   output: 'standalone',
-  // Force dynamic rendering
+  
+  // Force dynamic for all
   experimental: {
     missingSuspenseWithCSRBailout: false,
+  },
+  
+  // Cache control
+  headers: async () => {
+    return [
+      {
+        source: '/my-parts',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, max-age=0',
+          },
+        ],
+      },
+    ];
   },
 };
 
