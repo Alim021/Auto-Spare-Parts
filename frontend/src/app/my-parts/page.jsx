@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import "../../styles/home.css";
 import "../../styles/myitems.css";
 
-// Inner component jo Suspense ke andar hai
-function MyPartsContent() {
+export default function MyPartsPage() {
   const [parts, setParts] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
   const [loggedInEmail, setLoggedInEmail] = useState(null);
@@ -27,17 +26,14 @@ function MyPartsContent() {
   });
 
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  // API URL setup
-  const API_BASE_URL = typeof window !== 'undefined' 
-    ? (window.location.hostname === 'localhost' 
-      ? 'http://localhost:5000' 
-      : 'https://auto-spare-parts.onrender.com')
-    : 'https://auto-spare-parts.onrender.com';
+  // API URL
+  const API_BASE_URL = "https://auto-spare-parts.onrender.com";
 
   useEffect(() => {
-    const emailFromParams = searchParams.get("email");
+    // Email get karein without useSearchParams
+    const urlParams = new URLSearchParams(window.location.search);
+    const emailFromParams = urlParams.get("email");
     const emailFromStorage = localStorage.getItem("email");
 
     if (emailFromParams) {
@@ -48,7 +44,7 @@ function MyPartsContent() {
       alert("Please login first!");
       router.push("/login");
     }
-  }, [router, searchParams]);
+  }, [router]);
 
   useEffect(() => {
     if (!loggedInEmail) return;
@@ -511,21 +507,5 @@ function MyPartsContent() {
         </div>
       )}
     </div>
-  );
-}
-
-// Main component jo Suspense use karta hai
-export default function MyPartsPage() {
-  return (
-    <Suspense fallback={
-      <div className="home-container">
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Loading page...</p>
-        </div>
-      </div>
-    }>
-      <MyPartsContent />
-    </Suspense>
   );
 }
