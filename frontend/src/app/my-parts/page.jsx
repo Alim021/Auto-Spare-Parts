@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import "../../styles/home.css";
 import "../../styles/myitems.css";
 
-export default function MyPartsPage() {
+export default function MyPartsContent() {
   const [parts, setParts] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
   const [loggedInEmail, setLoggedInEmail] = useState(null);
@@ -29,6 +29,11 @@ export default function MyPartsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // Set API base URL for both development and production
+  const API_BASE_URL = process.env.NODE_ENV === 'production' 
+    ? 'https://auto-spare-parts.onrender.com'
+    : 'http://localhost:5000';
+
   useEffect(() => {
     const emailFromParams = searchParams.get("email");
     const emailFromStorage = localStorage.getItem("email");
@@ -49,13 +54,13 @@ export default function MyPartsPage() {
     setLoading(true);
 
     Promise.all([
-      fetch(`http://localhost:5000/api/shop_owners?email=${loggedInEmail}`).then(
+      fetch(`${API_BASE_URL}/api/shop_owners?email=${loggedInEmail}`).then(
         (res) => {
           if (!res.ok) throw new Error("Failed to fetch user profile");
           return res.json();
         }
       ),
-      fetch(`http://localhost:5000/api/spare_parts?email=${loggedInEmail}`).then(
+      fetch(`${API_BASE_URL}/api/spare_parts?email=${loggedInEmail}`).then(
         (res) => {
           if (!res.ok) throw new Error("Failed to fetch spare parts");
           return res.json();
@@ -80,7 +85,7 @@ export default function MyPartsPage() {
     if (!confirmDelete) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/api/spare_parts/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/spare_parts/${id}`, {
         method: "DELETE",
         headers: {
           "x-user-email": loggedInEmail,
@@ -154,7 +159,7 @@ export default function MyPartsPage() {
 
     try {
       const res = await fetch(
-        `http://localhost:5000/api/update-part/${editingPart.id}`,
+        `${API_BASE_URL}/api/update-part/${editingPart.id}`,
         {
           method: "PUT",
           headers: {
@@ -210,12 +215,19 @@ export default function MyPartsPage() {
   });
 
   if (loading) {
-    return <div className="home-container">Loading...</div>;
+    return (
+      <div className="home-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading your parts...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="home-container">
-    <h1>📦 {userProfile ? `${userProfile.shop_name} Shopkeeper` : "Auto Spare Parts"}</h1>
+      <h1>📦 {userProfile ? `${userProfile.shop_name} Shopkeeper` : "Auto Spare Parts"}</h1>
 
       <button onClick={() => window.history.back()} className="back-button">
         ← Back
@@ -229,6 +241,7 @@ export default function MyPartsPage() {
             border: "1px solid #ccc",
             backgroundColor: "lightseagreen",
             color: "white",
+            borderRadius: "8px",
           }}
         >
           <p><strong>Name:</strong> {userProfile.name}</p>
@@ -251,7 +264,15 @@ export default function MyPartsPage() {
       </div>
 
       {filteredParts.length === 0 ? (
-        <p className="no-result">No items found. Try a different search!</p>
+        <div className="empty-state">
+          <p className="no-result">No items found. Try a different search!</p>
+          <button 
+            className="clear-filters-btn"
+            onClick={() => setSearchTerm("")}
+          >
+            Clear Search
+          </button>
+        </div>
       ) : (
         <div className="table-container">
           <table className="parts-table">
@@ -276,23 +297,26 @@ export default function MyPartsPage() {
                   <td>{index + 1}</td>
                   <td>
                     <img
-                      src={part.image}
+                      src={part.image || "/placeholder.jpg"}
                       alt={part.name}
                       className="table-image"
-                      onError={(e) => (e.target.src = '/placeholder.jpg')}
+                      onError={(e) => {
+                        e.target.src = '/placeholder.jpg';
+                        e.target.onerror = null;
+                      }}
                     />
                   </td>
                   <td>{part.part_number || '-'}</td>
                   <td>{part.name}</td>
-                  <td>{part.description}</td>
+                  <td className="description-cell">{part.description}</td>
                   <td>
                     ₹{part.price}{' '}
-                    {part.originalPrice && (
+                    {part.originalPrice && part.originalPrice > part.price && (
                       <span className="strike-price">₹{part.originalPrice}</span>
                     )}
                   </td>
                   <td>{part.quantity_owned}</td>
-                  <td>{part.shopName}</td>
+                  <td>{part.shopName || part.shop_name || '-'}</td>
                   <td>
                     {part.quantity_owned === 0 ? (
                       <span style={{ color: 'red', fontWeight: 'bold' }}>
@@ -303,18 +327,24 @@ export default function MyPartsPage() {
                         🟠 Limited Stock
                       </span>
                     ) : (
-                      <a
-                        href={part.shopLocation}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          color: 'green',
-                          fontWeight: 'bold',
-                          textDecoration: 'none',
-                        }}
-                      >
-                        🛒 Available
-                      </a>
+                      part.shopLocation ? (
+                        <a
+                          href={part.shopLocation}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            color: 'green',
+                            fontWeight: 'bold',
+                            textDecoration: 'none',
+                          }}
+                        >
+                          🛒 Available
+                        </a>
+                      ) : (
+                        <span style={{ color: 'green', fontWeight: 'bold' }}>
+                          ✅ Available
+                        </span>
+                      )
                     )}
                   </td>
                   <td>
@@ -344,78 +374,124 @@ export default function MyPartsPage() {
           <div className="modal-content">
             <h2>Update Part: {editingPart.name}</h2>
             <form onSubmit={handleUpdateSubmit} className="update-form">
-              <input
-                type="text"
-                name="part_number"
-                value={updateForm.part_number}
-                onChange={handleUpdateChange}
-                required
-                placeholder="Part Number"
-              />
-              <input
-                type="text"
-                name="name"
-                value={updateForm.name}
-                onChange={handleUpdateChange}
-                required
-                placeholder="Part Name"
-              />
-              <textarea
-                name="description"
-                value={updateForm.description}
-                onChange={handleUpdateChange}
-                placeholder="Description"
-              />
-              <input
-                type="number"
-                name="price"
-                value={updateForm.price}
-                onChange={handleUpdateChange}
-                placeholder="Price"
-                required
-                min="0"
-                step="0.01"
-              />
-              <input
-                type="number"
-                name="originalPrice"
-                value={updateForm.originalPrice}
-                onChange={handleUpdateChange}
-                placeholder="Original Price (optional)"
-                min="0"
-                step="0.01"
-              />
-              <input
-                type="number"
-                name="quantity_owned"
-                value={updateForm.quantity_owned}
-                onChange={handleUpdateChange}
-                placeholder="Quantity Owned"
-                required
-                min="0"
-              />
-              <input
-                type="text"
-                name="shopName"
-                value={updateForm.shopName}
-                onChange={handleUpdateChange}
-                placeholder="Shop Name"
-              />
-              <input
-                type="text"
-                name="shopLocation"
-                value={updateForm.shopLocation}
-                onChange={handleUpdateChange}
-                placeholder="Shop Location URL"
-              />
-              <input type="file" accept="image/*" onChange={handleImageChange} />
-              {updateForm.imagePreview && (
-                <img
-                  src={updateForm.imagePreview}
-                  alt="Preview"
-                  style={{ maxWidth: "20%",maxHeight:"20%", marginTop: "-5px" }}
-                />
-              )}
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Part Number</label>
+                  <input
+                    type="text"
+                    name="part_number"
+                    value={updateForm.part_number}
+                    onChange={handleUpdateChange}
+                    required
+                    placeholder="Part Number"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Part Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={updateForm.name}
+                    onChange={handleUpdateChange}
+                    required
+                    placeholder="Part Name"
+                  />
+                </div>
+                
+                <div className="form-group full-width">
+                  <label>Description</label>
+                  <textarea
+                    name="description"
+                    value={updateForm.description}
+                    onChange={handleUpdateChange}
+                    placeholder="Description"
+                    rows="3"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Price (₹)</label>
+                  <input
+                    type="number"
+                    name="price"
+                    value={updateForm.price}
+                    onChange={handleUpdateChange}
+                    placeholder="Price"
+                    required
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Original Price (₹)</label>
+                  <input
+                    type="number"
+                    name="originalPrice"
+                    value={updateForm.originalPrice}
+                    onChange={handleUpdateChange}
+                    placeholder="Original Price (optional)"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Quantity</label>
+                  <input
+                    type="number"
+                    name="quantity_owned"
+                    value={updateForm.quantity_owned}
+                    onChange={handleUpdateChange}
+                    placeholder="Quantity Owned"
+                    required
+                    min="0"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Shop Name</label>
+                  <input
+                    type="text"
+                    name="shopName"
+                    value={updateForm.shopName}
+                    onChange={handleUpdateChange}
+                    placeholder="Shop Name"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Shop Location URL</label>
+                  <input
+                    type="text"
+                    name="shopLocation"
+                    value={updateForm.shopLocation}
+                    onChange={handleUpdateChange}
+                    placeholder="Shop Location URL"
+                  />
+                </div>
+                
+                <div className="form-group full-width">
+                  <label>Part Image</label>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleImageChange} 
+                    className="file-input"
+                  />
+                  {updateForm.imagePreview && (
+                    <div className="image-preview">
+                      <img
+                        src={updateForm.imagePreview}
+                        alt="Preview"
+                        className="preview-image"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+              
               <div className="modal-actions">
                 <button type="submit" className="save-btn">
                   Save Changes
